@@ -2,8 +2,6 @@ import csv
 import math
 import sys
 from datetime import datetime
-
-import numpy as np
 import pandas as pd
 import pyqtgraph as pg
 from PyQt5.QtCore import QTimer
@@ -11,6 +9,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushB
 
 
 class WeightTracker(QMainWindow):
+    def clickmouse(self):
+        self.plotWidget.scene().sigMouseClicked.connect(self.mouse_clicked)
+
     def __init__(self):
         super().__init__()
 
@@ -64,8 +65,15 @@ class WeightTracker(QMainWindow):
             self.plotWidget.setXRange(1, row_count)
         # 检测鼠标点击
         self.plotWidget.scene().sigMouseClicked.connect(self.mouse_clicked)
+        # 创建定时器,防止鼠标快速点击
+        self.timer = QTimer()
+        self.timer.setInterval(2000)
+        if self.timer.isActive():
+            self.plotWidget.scene().sigMouseClicked.disconnect(self.mouse_clicked)
+            self.timer.timeout.connect(self.clickmouse)
+
         # 读取CSV文件中的数据，并添加到列表部件中
-        x = np.arange(1, row_count + 1, 1)
+        x = list(range(1, row_count + 1))
         y = []
         with open('weight_data.csv', mode='r') as file:
             reader = csv.reader(file)
@@ -122,7 +130,7 @@ class WeightTracker(QMainWindow):
         row_count = df.shape[0]
         mean_weight = df['weight'].mean()
         coeff = mean_weight / (mean_weight + math.log(mean_weight))
-        x = np.arange(1, row_count + 1, 1)
+        x = list(range(1, row_count + 1))
         y = []
         with open('weight_data.csv', mode='r') as file:
             reader = csv.reader(file)
@@ -136,10 +144,6 @@ class WeightTracker(QMainWindow):
             self.plotWidget.setYRange(mean_weight*coeff, mean_weight/coeff)
             self.plotWidget.setXRange(1, row_count)
         self.plotWidget.plot(x, y, pen='black', symbol='x', pensize=10, symbolPen='black', symbolBrush=0.2, symbolSize=10)
-
-    # 子功能函数
-    def clickmouse(self):
-        self.plotWidget.scene().sigMouseClicked.connect(self.mouse_clicked)
 
     # 鼠标点击事件
     def mouse_clicked(self, event):
@@ -178,11 +182,9 @@ class WeightTracker(QMainWindow):
                 self.info_label.show()
                 self.timer.start(2000)
                 self.timer.timeout.connect(self.info_label.hide)
-                # 如果计时器正在计时，则禁用鼠标点击事件，等到计时器停止后再启用
                 if self.timer.isActive():
                     self.plotWidget.scene().sigMouseClicked.disconnect(self.mouse_clicked)
                     self.timer.timeout.connect(self.clickmouse)
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
